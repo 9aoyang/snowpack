@@ -36,6 +36,7 @@ npx create-snowpack-app new-dir --template @snowpack/app-template-NAME [--use-ya
 ### Build
 
 - [@snowpack/plugin-babel](../@snowpack/plugin-babel)
+- [@snowpack/plugin-postcss-transform](../@snowpack/plugin-postcss-transform)
 - [@snowpack/plugin-svelte](../@snowpack/plugin-svelte)
 - [@snowpack/plugin-vue](../@snowpack/plugin-vue)
 
