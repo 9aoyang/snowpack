@@ -1,5 +1,5 @@
 import merge from 'deepmerge';
-import {startService as esbuildStartService} from 'esbuild';
+import * as esbuild from 'esbuild';
 import {EventEmitter} from 'events';
 import {promises as fs} from 'fs';
 import glob from 'glob';
@@ -286,16 +286,40 @@ export async function command(commandOptions: CommandOptions) {
     isHmrEnabled: false,
   });
 
-  if (config.buildOptions.minify) {
+  // note: the following logic is a little awkward, but we want to use the same
+  // esbuild service for minification AND/OR source maps
+  if (config.buildOptions.minify || config.buildOptions.sourceMaps) {
     const minifierStart = performance.now();
-    console.log(colors.yellow('! minifying javascript...'));
-    let minifierService = await esbuildStartService();
+    console.log(
+      colors.yellow(
+        config.buildOptions.minify ? '! minifying javascript...' : '! building source maps...',
+      ),
+    );
+    const minifierService = await esbuild.startService();
     const allJsFiles = glob.sync(path.join(buildDirectoryLoc, '**/*.js'));
-    for (const jsFile of allJsFiles) {
-      const jsFileContents = await fs.readFile(jsFile, 'utf-8');
-      const {js} = await minifierService.transform(jsFileContents, {minify: true});
-      js && (await fs.writeFile(jsFile, js, 'utf-8'));
-    }
+    await Promise.all(
+      allJsFiles.map(async (jsFile) => {
+        let js = await fs.readFile(jsFile, 'utf-8');
+        const {js: minifiedJS, jsSourceMap} = await minifierService.transform(js, {
+          minify: config.buildOptions.minify,
+          sourcefile: jsFile,
+          sourcemap: config.buildOptions.sourceMaps,
+        });
+
+        const sourceMapFile = `${path.basename(jsFile)}.map`;
+
+        if (config.buildOptions.minify) js = minifiedJS;
+        if (config.buildOptions.sourceMaps) js += `//# sourceMappingURL=./${sourceMapFile}`;
+
+        let jsWrite = fs.writeFile(jsFile, js, 'utf-8'); // micro-optimization: write both files in parallel
+
+        // if source maps enabled, write sourceMap
+        if (config.buildOptions.sourceMaps && jsSourceMap)
+          await fs.writeFile(path.join(path.dirname(jsFile), sourceMapFile), jsSourceMap, 'utf-8');
+
+        return jsWrite;
+      }),
+    );
     const minifierEnd = performance.now();
     console.log(
       `${colors.green('✔')} ${colors.bold('snowpack')} minification complete ${colors.dim(

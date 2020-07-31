@@ -48,18 +48,11 @@ describe('create-snowpack-app', () => {
 
       // 1. build
 
-      // pre-build: set config to minify output
-      const snowpackConfig = path.join(cwd, 'snowpack.config.json');
-      const originalConfig = fs.readFileSync(snowpackConfig, 'utf8');
-      const config = JSON.parse(originalConfig);
-      config.buildOptions = {...(config.buildOptions || {}), minify: false};
-      fs.writeFileSync(snowpackConfig, JSON.stringify(config), 'utf8');
-
       // build
-      await execa('yarn', ['build'], {cwd, env: {NODE_ENV: 'production'}});
-
-      // post-build: restore original config
-      fs.writeFileSync(snowpackConfig, originalConfig, 'utf8');
+      await execa('yarn', ['build', '--no-minify', '--no-source-maps'], {
+        cwd,
+        env: {NODE_ENV: 'production'},
+      });
 
       const expected = path.join(__dirname, 'snapshots', template);
       const actual = path.join(cwd, 'build');

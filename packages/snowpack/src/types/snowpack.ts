@@ -136,6 +136,7 @@ export interface SnowpackConfig {
     clean: boolean;
     metaDir: string;
     minify: boolean;
+    sourceMaps: boolean;
   };
   _extensionMap: Record<string, string>;
 }
